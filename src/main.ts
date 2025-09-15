@@ -1,14 +1,10 @@
 import dotenv from "dotenv";
 import { Telegraf } from "telegraf";
-import { startCommand } from "./bot/commands/startCommand.ts";
-import prisma from "./db/client.ts";
-import { requestContextMiddleware } from "./middlewares/requestContextMiddleware.ts";
-import { ensureUserMiddleware } from "./middlewares/ensureUserMiddleware.ts";
-import { addCard } from "./bot/commands/addCard.ts";
-import { ValidationError } from "./error/ValidationError.ts";
-import { errorHandlerMiddleware } from "./middlewares/errorHandlerMiddleware.ts";
+import { startCommand, addCard, helpCommand } from "@commands";
+import prisma from "@core/db/client";
+import { requestContextMiddleware, ensureUserMiddleware, errorHandlerMiddleware } from "@core/middlewares";
+import { handleRecallResult } from "@services/SM2";
 
-// Load environment variables
 dotenv.config();
 
 async function main() {
@@ -17,16 +13,22 @@ async function main() {
     await prisma.$connect();
     console.log("Database connected successfully");
 
-    // Initialize bot
+    // Init bot
     const bot = new Telegraf(process.env.BOT_TOKEN as string);
 
-    //Register middlewares
+    //Middlewares
     bot.use(ensureUserMiddleware);
     bot.use(requestContextMiddleware);
 
-    // Register commands
+    //Commands
     bot.command("start", startCommand);
+    bot.command("help", helpCommand);
     bot.hears(/^addCard\b/, addCard);
+    bot.action(/^select_(\d)\|(\d+)$/, async (ctx) => {
+      const recallQuality = parseInt(ctx.match[1]!);
+      const cardId = parseInt(ctx.match[2]!);
+      await handleRecallResult(recallQuality, cardId);
+    });
 
     //Global exception handler
     bot.catch(errorHandlerMiddleware());

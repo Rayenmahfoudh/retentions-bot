@@ -20,9 +20,11 @@ model Card {
   id           Int      @id @default(autoincrement())
   question     String
   answer       String
-  difficulty   Int? @default(1)
-  nextReview  DateTime?
-  deckId      Int
+  repetitions  Int @default(0)
+  ease_factor  Float @default(2.5)
+  interval     Int @default(1)
+  nextReview   DateTime 
+  deckId       Int
   deck         Deck @relation(fields: [deckId], references: [id])
   created_at   DateTime @default(now())
   updated_at   DateTime? @updatedAt

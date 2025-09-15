@@ -1,5 +1,5 @@
 import { Context } from "telegraf";
-import { create, findByTelegramId } from "../services/UserService.ts";
+import { create, findByTelegramId } from "@services/UserService";
 
 export async function ensureUserMiddleware(
   ctx: Context,
@@ -7,9 +7,9 @@ export async function ensureUserMiddleware(
 ) {
   const user = ctx.from
     ? {
-        telegramId: ctx.from.id.toString(),
-        username: ctx.from.first_name,
-      }
+      telegramId: ctx.from.id.toString(),
+      username: ctx.from.first_name,
+    }
     : undefined;
 
   if (!user) {

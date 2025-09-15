@@ -1,6 +1,6 @@
-import prisma from "../db/client.ts";
-import type { CreateDeckData } from "../types/Decks";
-import { Deck } from "@prisma/client";
+import { prisma } from "@core/db"
+import type { CreateDeckData } from "@types/decks";
+import type { Deck } from "@prisma/client";
 
 export async function create(createDeckData: CreateDeckData): Promise<Deck> {
   const createdDeck = await prisma.deck.create({ data: createDeckData });
@@ -32,7 +32,7 @@ export async function findOrCreateDeckId(
   deckName: string,
   userId: number
 ): Promise<number> {
-  let deckId = await findDeckId(deckName, userId);
+  const deckId = await findDeckId(deckName, userId);
 
   if (!deckId) {
     const deck = await create({ name: deckName, isActive: true, userId });

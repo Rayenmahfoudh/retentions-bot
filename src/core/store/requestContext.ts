@@ -1,5 +1,5 @@
+import { User } from "@prisma/client";
 import { AsyncLocalStorage } from "async_hooks";
-import type { User } from "../types/Users";
 
 export interface RequestContext {
   user: User;
