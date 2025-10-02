@@ -18,11 +18,12 @@ export async function ensureUserMiddleware(
     return;
   }
 
-  if (!(await userExist(user.telegramId))) {
+  if (!await userExist(user.telegramId)) {
     await create(user);
   }
 
   await next();
+
 }
 
 async function userExist(telegramId: string) {

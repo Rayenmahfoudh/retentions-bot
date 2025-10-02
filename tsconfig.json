@@ -25,6 +25,9 @@
       ],
       "@errors/*": [
         "errors/*"
+      ],
+      "@utils/*": [
+        "utils/*"
       ]
     },
     "sourceMap": true,

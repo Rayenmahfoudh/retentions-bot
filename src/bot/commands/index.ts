@@ -1,3 +1,3 @@
-export * from './addCard'
-export * from './startCommand'
-export * from './help'
+export * from './cardCommands'
+export * from './generalCommands'
+export * from './deckCommands'

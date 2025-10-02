@@ -16,3 +16,14 @@ export async function findByTelegramId(
 
   return user ?? null;
 }
+
+export async function updateUserGeminiToken(token: string, userId: number): Promise<boolean> {
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      gemini_token: token
+    }
+  });
+
+  return true;
+}

@@ -3,41 +3,50 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql" 
-  url      = env("DATABASE_URL")
+  provider = "sqlite"
+  url      = "file:./retentinon_bot_db.db"
 }
 
 model User {
-  id         Int      @id @default(autoincrement())
-  telegramId String  @unique
-  username   String
-  createdAt DateTime @default(now())
-  updatedAt DateTime? @updatedAt
-  decks      Deck[]
+  id           Int       @id @default(autoincrement())
+  telegramId   String    @unique
+  username     String
+  gemini_token String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime? @updatedAt
+  decks        Deck[]
+}
+
+enum CardStatus {
+  PENDING
+  ACTIVE
+  INACTIVE
 }
 
 model Card {
-  id           Int      @id @default(autoincrement())
-  question     String
-  answer       String
-  repetitions  Int @default(0)
-  ease_factor  Float @default(2.5)
-  interval     Int @default(1)
-  nextReview   DateTime 
-  deckId       Int
-  deck         Deck @relation(fields: [deckId], references: [id])
-  created_at   DateTime @default(now())
-  updated_at   DateTime? @updatedAt
+  id          Int        @id @default(autoincrement())
+  question    String
+  answer      String
+  repetitions Int        @default(0)
+  ease_factor Float      @default(2.5)
+  interval    Int        @default(1)
+  nextReview  DateTime
+  status      CardStatus @default(PENDING)
+  deckId      Int
+  deck        Deck       @relation(fields: [deckId], references: [id])
+  created_at  DateTime   @default(now())
+  updated_at  DateTime?  @updatedAt
 }
 
 model Deck {
-  id         Int      @id @default(autoincrement())
-  name       String
+  id        Int       @id @default(autoincrement())
+  name      String
   isActive  Boolean
   userId    Int
-  user       User     @relation(fields: [userId], references: [id])
-  cards      Card[]
-  createdAt DateTime @default(now())
+  user      User      @relation(fields: [userId], references: [id])
+  cards     Card[]
+  createdAt DateTime  @default(now())
   updatedAt DateTime? @updatedAt
-  @@unique([userId,name],name:"deckIdentifier")
+
+  @@unique([userId, name], name: "deckIdentifier")
 }

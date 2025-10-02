@@ -1,10 +1,30 @@
 import { prisma } from "@core/db"
 import type { CreateDeckData } from "@types/decks";
-import type { Deck } from "@prisma/client";
+import type { Deck, User } from "@prisma/client";
 
 export async function create(createDeckData: CreateDeckData): Promise<Deck> {
   const createdDeck = await prisma.deck.create({ data: createDeckData });
   return createdDeck;
+}
+
+export async function index(userId: User['id']): Promise<Deck[]> {
+  const decks = await prisma.deck.findMany({
+    where: {
+      userId: userId
+    }
+  })
+  return decks
+}
+
+export async function toggleStatus(deckId: Deck['id'], isActive: boolean) {
+  await prisma.deck.update({
+    where: {
+      id: deckId,
+    },
+    data: {
+      isActive: isActive
+    }
+  })
 }
 
 export async function findByName(

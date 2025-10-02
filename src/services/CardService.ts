@@ -1,9 +1,12 @@
 import { prisma } from "@core/db"
 import { ValidationError } from "@errors/ValidationError";
 import { getUserId } from "@core/store";
-import { CreateCardData, UpdateCardData } from "@types/cards";
+import { CreateCardData, parsedCard, UpdateCardData } from "@types/cards";
 import { findOrCreateDeckId } from "@services/DeckService";
-import type { Card } from "@prisma/client";
+import { CardStatus, type Card, type Deck } from "@prisma/client";
+import { Context } from "telegraf";
+import { escapeMarkdownV2 } from "@utils/utils";
+import { promptGemini } from "./GeminiService";
 
 export async function create(createCardData: CreateCardData): Promise<Card> {
   const newCard = await prisma.card.create({ data: createCardData });
@@ -25,7 +28,7 @@ export async function parseCard(message: string): Promise<CreateCardData> {
   const userId = getUserId();
   const deckId = await findOrCreateDeckId(parts[2]!, userId);
 
-  //Review after 2 hours TODO: figure the first review time
+  //Review after 2 hours
   const nextReview = new Date();
   nextReview.setHours(nextReview.getHours() + 2);
 
@@ -35,6 +38,26 @@ export async function parseCard(message: string): Promise<CreateCardData> {
     nextReview,
     deckId: deckId,
   };
+}
+
+
+export async function index(deckId: Deck['id']): Promise<Card[]> {
+  const cards = await prisma.card.findMany({
+    where: {
+      deckId: deckId,
+      status: {
+        not: CardStatus.PENDING
+      }
+    }
+  })
+
+  return cards
+}
+
+export async function bulkInsert(cards: CreateCardData[]): Promise<Card[]> {
+  const result = await prisma.card.createManyAndReturn({ data: cards })
+
+  return result
 }
 
 export async function getCardsDueToday(): Promise<Card[] | null> {
@@ -94,12 +117,6 @@ export async function updateCard(
   });
 }
 
-// async function rescheduleCard(ctx: unknown) {
-//   //TODO: fix this?
-//   const retentionRate = ctx.match[0];
-//   const cardId = ctx.match[1];
-// }
-
 export async function findById(cardId: Card["id"]): Promise<Card | null> {
   const card = await prisma.card.findUnique({
     where: {
@@ -108,3 +125,71 @@ export async function findById(cardId: Card["id"]): Promise<Card | null> {
   });
   return card;
 }
+
+export async function deleteCard(cardId: Card['id']) {
+  const result = await prisma.card.delete({ where: { id: cardId } })
+  return result
+}
+
+export function sendFlashcardMessages(ctx: Context, cards: Card[]) {
+  cards.forEach((card: Card) => {
+    const escapedCard = `*Question*: ${escapeMarkdownV2(card.question)}\n\n*Answer*: ${escapeMarkdownV2(card.answer)}`;
+    ctx.reply(escapedCard, {
+      parse_mode: 'MarkdownV2',
+      reply_markup: {
+        inline_keyboard: [
+          [
+            { text: '✅ Accept', callback_data: `accept_card|${card.id}` },
+            { text: '❌ Reject', callback_data: `reject_card|${card.id}` },
+          ],
+        ],
+      },
+    });
+  });
+}
+
+export function formatCardsForDB(cards: parsedCard[], deckId: number) {
+  const nextReview = new Date();
+  nextReview.setHours(nextReview.getHours() + 2);
+  cards.forEach((card) => {
+    card.deckId = deckId;
+    card.nextReview = nextReview;
+  });
+}
+
+export async function generateFlashcards(fileContent: string, userId: number): Promise<parsedCard[]> {
+  const flashcards = await promptGemini(`
+You are a tool converting technical notes into flashcards for fast comprehension and recall.
+
+Transform the following content into an array of JSON objects, where each object has a "question" and "answer" field in the format:
+[{"question": "Question text", "answer": "Answer text"}, ...]
+
+Guidelines:
+- Make the question concise and direct, as if testing understanding.
+- Use neutral, quiz-like phrasing. Prefer formats like "What does ___ mean?" or "Why should you ___?".
+- Keep the answer short and factual.
+- Return ONLY the array of JSON objects — no explanations, commentary, or extra text.
+
+Content:
+${fileContent}
+`, userId);
+
+  if (!flashcards) {
+    throw new Error('No flashcards generated. Please ensure the file is a valid markdown file.');
+  }
+
+  return JSON.parse(flashcards.replace(/^```[\s\S]*?\n|```$/g, ''));
+}
+
+
+export async function toggleStatus(cardId: Card['id'], status: CardStatus) {
+  await prisma.card.update({
+    where: {
+      id: cardId
+    },
+    data: {
+      status: status
+    }
+  })
+}
+
